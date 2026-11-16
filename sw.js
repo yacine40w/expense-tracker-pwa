@@ -5,6 +5,7 @@ const ASSETS_TO_CACHE = [
     './manifest.json',
     './css/style.css',
     './js/db.js',
+    './js/sync.js',
     './js/ui.js',
     './js/app.js'
 ];
@@ -33,6 +34,10 @@ self.addEventListener('activate', (event) => {
 
 // جلب الملفات من الكاش أولاً لضمان العمل بدون إنترنت
 self.addEventListener('fetch', (event) => {
+    // عدم تخزين طلبات Supabase في الكاش
+    if (event.request.url.includes('supabase.co')) {
+        return;
+    }
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             return cachedResponse || fetch(event.request);
