@@ -1,12 +1,18 @@
 const SUPABASE_URL = 'https://dowsmxhjixjbnhqcpius.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRvd3NteGhqaXhqYm5ocWNwaXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTQ4NDk5ODYsImV4cCI6MjExMDQyNTk4Nn0.FlkGJOxSCRHk5jS3iTlCpvlSjEIRrpS154u1gzWzk8k';
 
-const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let supabaseClient = null;
+try {
+    if (window.supabase && SUPABASE_URL.startsWith('http')) {
+        supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+} catch (e) {
+    console.warn('تعذر تهيئة Supabase، سيتم العمل محلياً:', e.message);
+}
 
 const SyncManager = {
     isSyncing: false,
 
-    // تحديث شارة الحالة في الشريط العلوي
     updateStatusUI(statusText, isOnline) {
         const badge = document.getElementById('connection-status');
         if (!badge) return;
@@ -16,17 +22,21 @@ const SyncManager = {
     },
 
     async syncNow(onDataUpdated) {
+        if (!supabaseClient) {
+            this.updateStatusUI('وضع محلي', false);
+            return;
+        }
         if (!navigator.onLine) {
             this.updateStatusUI('غير متصل (محلي)', false);
             return;
         }
-
         if (this.isSyncing) return;
+
         this.isSyncing = true;
         this.updateStatusUI('جاري المزامنة...', true);
 
         try {
-            // 1. رفع التغييرات المحلية غير المتزامنة (Push)
+            // 1. رفع السجلات المحلية غير المتزامنة
             const unsynced = await ExpenseDB.getUnsyncedRecords();
             if (unsynced.length > 0) {
                 const payload = unsynced.map(({ is_synced, ...rest }) => rest);
@@ -35,9 +45,14 @@ const SyncManager = {
                     .upsert(payload, { onConflict: 'id' });
 
                 if (pushError) throw pushError;
+
+                // تحديث حالة السجلات المرفوعة محلياً إلى متزامنة
+                await ExpenseDB.upsertFromCloud(
+                    unsynced.map(item => ({ ...item, is_synced: true }))
+                );
             }
 
-            // 2. جلب أحدث التغييرات من السحابة (Pull)
+            // 2. جلب التحديثات الجديدة من السحابة
             const lastSync = localStorage.getItem('last_sync_time') || '1970-01-01T00:00:00.000Z';
             const { data: cloudRecords, error: pullError } = await supabaseClient
                 .from('expenses')
@@ -50,7 +65,6 @@ const SyncManager = {
                 await ExpenseDB.upsertFromCloud(cloudRecords);
             }
 
-            // 3. تحديث طابع آخر مزامنة ناجحة
             localStorage.setItem('last_sync_time', new Date().toISOString());
             this.updateStatusUI('متزامن ✓', true);
 
