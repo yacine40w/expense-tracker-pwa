@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f766e">
+    <title>مصاريف - متتبع النفقات</title>
+    <link rel="stylesheet" href="css/style.css">
+    <!-- سيتم تفعيل هذا السطر في مرحلة PWA -->
+    <link rel="manifest" href="manifest.json">
+</head>
+
+<body>
+    <!-- شاشة تسجيل الدخول (تظهر فقط إذا لم تكن مسجلاً) -->
+    <div id="auth-screen" class="auth-overlay" style="display: none;">
+        <div class="auth-card">
+            <h2>🔒 تسجيل الدخول</h2>
+            <p class="auth-subtitle">أدخل بيانات حسابك لمزامنة مصاريفك بأمان</p>
+            <form id="login-form">
+                <div class="input-group">
+                    <label for="login-email">البريد الإلكتروني</label>
+                    <input type="email" id="login-email" required placeholder="name@example.com" dir="ltr">
+                </div>
+                <div class="input-group">
+                    <label for="login-password">كلمة المرور</label>
+                    <input type="password" id="login-password" required placeholder="••••••••" dir="ltr">
+                </div>
+                <p id="auth-error" class="auth-error"></p>
+                <button type="submit" id="btn-login" class="btn-submit">دخول</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- داخل .app-header في .header-title أضف زر الخروج بجانب شارة الحالة -->
+    <div class="header-title">
+        <h1>مصاريف</h1>
+        <span id="connection-status" class="status-badge offline">محلي</span>
+        <button type="button" id="btn-logout" class="btn-logout" title="تسجيل الخروج"
+            style="display: none;">خروج</button>
+    </div>
+    <div class="app-container">
+        <!-- الشريط العلوي -->
+        <header class="app-header">
+            <div class="header-title">
+                <h1>مصاريف</h1>
+                <span id="connection-status" class="status-badge offline" title="وضع العمل المحلي">محلي</span>
+            </div>
+            <div class="filter-tabs">
+                <button class="filter-btn active" data-filter="today">اليوم</button>
+                <button class="filter-btn" data-filter="month">الشهر</button>
+                <button class="filter-btn" data-filter="all">الكل</button>
+            </div>
+        </header>
+
+        <!-- بطاقة الملخص المالي -->
+        <section class="summary-section">
+            <div class="summary-card main-card">
+                <span class="label">مصاريف اليوم</span>
+                <div class="amount-display">
+                    <span id="today-total">0.00</span>
+                    <small>د.ج</small>
+                </div>
+            </div>
+            <div class="summary-card secondary-card">
+                <div class="budget-header">
+                    <span class="label">إجمالي الشهر</span>
+                    <button type="button" id="btn-set-budget" class="btn-budget-edit" title="تحديد الميزانية الشهرية">⚙️
+                        الميزانية</button>
+                </div>
+                <div class="amount-display">
+                    <span id="month-total">0.00</span>
+                    <small>د.ج</small>
+                </div>
+                <!-- شريط الميزانية الشهرية -->
+                <div id="budget-container" class="budget-container" style="display: none;">
+                    <div class="budget-progress-bg">
+                        <div id="budget-progress-bar" class="budget-progress-fill" style="width: 0%;"></div>
+                    </div>
+                    <div class="budget-meta">
+                        <span id="budget-percentage">0%</span>
+                        <span id="budget-limit-text">من 0.00 د.ج</span>
+                    </div>
+                    <div id="budget-alert" class="budget-alert" style="display: none;"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- نموذج الإدخال السريع -->
+        <section class="form-section">
+            <form id="expense-form">
+                <div class="input-group amount-group">
+                    <label for="amount">المبلغ (د.ج)</label>
+                    <input type="number" id="amount" inputmode="decimal" step="0.01" min="0.01" placeholder="0.00"
+                        required>
+                </div>
+
+                <!-- أزرار الفئات السريعة -->
+                <div class="input-group">
+                    <label>الفئة</label>
+                    <div class="category-grid" id="category-selector">
+                        <button type="button" class="cat-btn active" data-category="طعام">🍔 طعام</button>
+                        <button type="button" class="cat-btn" data-category="نقل">🚗 نقل</button>
+                        <button type="button" class="cat-btn" data-category="فواتير">💡 فواتير</button>
+                        <button type="button" class="cat-btn" data-category="تسوق">🛒 تسوق</button>
+                        <button type="button" class="cat-btn" data-category="صحة">💊 صحة</button>
+                        <button type="button" class="cat-btn" data-category="أخرى">📦 أخرى</button>
+                    </div>
+                    <input type="hidden" id="selected-category" value="طعام">
+                </div>
+
+                <div class="row-inputs">
+                    <div class="input-group">
+                        <label for="note">ملاحظة (اختياري)</label>
+                        <input type="text" id="note" placeholder="مثال: قهوة، وقود...">
+                    </div>
+                    <div class="input-group">
+                        <label for="date">التاريخ</label>
+                        <input type="date" id="date" required>
+                    </div>
+                </div>
+
+                <button type="submit" class="btn-submit">＋ إضافة المصروف</button>
+                <input type="hidden" id="edit-expense-id" value="">
+
+<!-- استبدل زر الإرسال بصف أزرار يدعم الإضافة والتعديل -->
+<div class="form-actions">
+    <button type="submit" id="btn-submit-expense" class="btn-submit">＋ إضافة المصروف</button>
+    <button type="button" id="btn-cancel-edit" class="btn-cancel" style="display: none;">إلغاء التعديل</button>
+</div>
+            </form>
+        </section>
+
+        <!-- سجل المصاريف -->
+        <section class="transactions-section">
+            <div class="section-header">
+                <h2>سجل العمليات</h2>
+                <span id="records-count" class="count-badge">0</span>
+            </div>
+            <ul id="expense-list" class="expense-list">
+                <!-- ستُضاف العناصر هنا ديناميكياً عبر JS -->
+                <li class="empty-state">لا توجد مصاريف مسجلة في هذه الفترة</li>
+            </ul>
+        </section>
+    </div>
+
+    <!-- ربط ملفات الجافاسكريبت -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="js/db.js?v=3"></script>
+    <script src="js/sync.js?v=3"></script>
+    <script src="js/ui.js?v=3"></script>
+    <script src="js/app.js?v=3"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(reg => console.log('Service Worker مسجل بنجاح:', reg.scope))
+                    .catch(err => console.error('فشل تسجيل Service Worker:', err));
+            });
+        }
+    </script>
+</body>
+
+</html>
