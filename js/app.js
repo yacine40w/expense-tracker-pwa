@@ -86,4 +86,48 @@ document.addEventListener('DOMContentLoaded', async () => {
         UI.updateSummaries(expenses);
         UI.renderExpenses(expenses, currentFilter);
     }
+    const authScreen = document.getElementById('auth-screen');
+    const loginForm = document.getElementById('login-form');
+    const authError = document.getElementById('auth-error');
+    const logoutBtn = document.getElementById('btn-logout');
+
+    // فحص الجلسة الحالية عند فتح التطبيق
+    const session = await window.AppSync.getSession();
+    if (!session) {
+        authScreen.style.display = 'flex';
+    } else {
+        authScreen.style.display = 'none';
+        logoutBtn.style.display = 'inline-block';
+    }
+
+    // معالجة تسجيل الدخول
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        authError.textContent = '';
+        const btn = document.getElementById('btn-login');
+        btn.disabled = true;
+        btn.textContent = 'جاري الدخول...';
+
+        try {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+            await window.AppSync.signIn(email, password);
+
+            authScreen.style.display = 'none';
+            logoutBtn.style.display = 'inline-block';
+            await window.AppSync.syncNow(refreshApp);
+        } catch (err) {
+            authError.textContent = 'البريد الإلكتروني أو كلمة المرور غير صحيحة';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'دخول';
+        }
+    });
+
+    // معالجة تسجيل الخروج
+    logoutBtn.addEventListener('click', async () => {
+        await window.AppSync.signOut();
+        logoutBtn.style.display = 'none';
+        authScreen.style.display = 'flex';
+    });
 });
