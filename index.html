@@ -91,19 +91,22 @@
                         required>
                 </div>
 
-                <!-- أزرار الفئات السريعة -->
                 <div class="input-group">
-                    <label>الفئة</label>
-                    <div class="category-grid" id="category-selector">
-                        <button type="button" class="cat-btn active" data-category="طعام">🍔 طعام</button>
-                        <button type="button" class="cat-btn" data-category="نقل">🚗 نقل</button>
-                        <button type="button" class="cat-btn" data-category="فواتير">💡 فواتير</button>
-                        <button type="button" class="cat-btn" data-category="تسوق">🛒 تسوق</button>
-                        <button type="button" class="cat-btn" data-category="صحة">💊 صحة</button>
-                        <button type="button" class="cat-btn" data-category="أخرى">📦 أخرى</button>
-                    </div>
-                    <input type="hidden" id="selected-category" value="طعام">
-                </div>
+    <div class="cat-header">
+        <label>الفئة</label>
+        <button type="button" id="btn-manage-cats" class="btn-budget-edit">⚙️ إدارة الفئات</button>
+    </div>
+    <!-- الفئات الرئيسية تُرسم ديناميكياً هنا -->
+    <div id="category-grid" class="category-grid"></div>
+    <input type="hidden" id="selected-category" value="">
+
+    <!-- الفئات الفرعية تظهر تلقائياً إذا كانت للفئة الرئيسية فروع -->
+    <div id="subcategory-section" style="display: none; margin-top: 10px;">
+        <label style="font-size: 0.8rem; color: var(--text-muted);">الفئة الفرعية</label>
+        <div id="subcategory-grid" class="subcategory-grid"></div>
+    </div>
+    <input type="hidden" id="selected-subcategory" value="">
+</div>
 
                 <div class="row-inputs">
                     <div class="input-group">
@@ -139,7 +142,32 @@
             </ul>
         </section>
     </div>
+<!-- نافذة إدارة الفئات والفروع -->
+<div id="cat-modal" class="auth-overlay" style="display: none;">
+    <div class="auth-card cat-modal-card">
+        <div class="modal-header">
+            <h3>🗂️ إدارة الفئات والفروع</h3>
+            <button type="button" id="btn-close-cat-modal" class="btn-close-modal">✕</button>
+        </div>
 
+        <form id="cat-manage-form" class="cat-form">
+            <input type="hidden" id="edit-cat-id" value="">
+            <div class="cat-form-row">
+                <input type="text" id="cat-icon-input" value="📁" maxlength="4" class="icon-input" title="أيقونة">
+                <input type="text" id="cat-name-input" placeholder="اسم الفئة أو الفرع..." required>
+            </div>
+            <div class="cat-form-row">
+                <select id="cat-parent-select">
+                    <option value="">-- فئة رئيسية (بدون أب) --</option>
+                </select>
+                <button type="submit" id="btn-save-cat" class="btn-submit" style="width: auto; padding: 10px 16px;">حفظ</button>
+                <button type="button" id="btn-cancel-cat-edit" class="btn-cancel" style="display: none; padding: 10px;">إلغاء</button>
+            </div>
+        </form>
+
+        <ul id="cat-manage-list" class="cat-manage-list"></ul>
+    </div>
+</div>
     <!-- ربط ملفات الجافاسكريبت -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="js/db.js?v=3"></script>
