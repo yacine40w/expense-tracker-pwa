@@ -1,19 +1,9 @@
 document.addEventListener('DOMContentLoaded', async () => {
     let currentFilter = 'today';
     const dateInput = document.getElementById('date');
-    dateInput.value = new Date().toISOString().split('T')[0];
+    if (dateInput) dateInput.value = new Date().toISOString().split('T')[0];
 
-    await ExpenseDB.init();
-    await refreshApp();
-
-    // مزامنة فورية عند فتح التطبيق
-    SyncManager.syncNow(refreshApp);
-
-    // مزامنة تلقائية بمجرد عودة الإنترنت
-    window.addEventListener('online', () => SyncManager.syncNow(refreshApp));
-    window.addEventListener('offline', () => SyncManager.updateStatusUI('غير متصل (محلي)', false));
-
-    // أزرار الفئات
+    // 1. ربط أزرار الفئات فوراً (قبل قاعدة البيانات)
     const catButtons = document.querySelectorAll('.cat-btn');
     const selectedCatInput = document.getElementById('selected-category');
     catButtons.forEach(btn => {
@@ -24,7 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // أزرار التصفية
+    // 2. ربط أزرار التصفية فوراً
     const filterButtons = document.querySelectorAll('.filter-btn');
     filterButtons.forEach(btn => {
         btn.addEventListener('click', async () => {
@@ -35,39 +25,61 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
     });
 
-    // إضافة مصروف ومزامنته فوراً
+    // 3. ربط النموذج ومنع تحديث الصفحة مهما حدث
     const form = document.getElementById('expense-form');
     form.addEventListener('submit', async (e) => {
-        e.preventDefault();
+        e.preventDefault(); // يمنع تحديث الصفحة دائماً
+
         const amountInput = document.getElementById('amount');
         const noteInput = document.getElementById('note');
+        const amountVal = parseFloat(amountInput.value);
 
-        if (!amountInput.value || parseFloat(amountInput.value) <= 0) return;
+        if (!amountVal || amountVal <= 0) return;
 
-        await ExpenseDB.addExpense({
-            amount: amountInput.value,
-            category: selectedCatInput.value,
-            note: noteInput.value,
-            date: dateInput.value
-        });
+        try {
+            await ExpenseDB.addExpense({
+                amount: amountVal,
+                category: selectedCatInput.value,
+                note: noteInput.value,
+                date: dateInput.value
+            });
 
-        amountInput.value = '';
-        noteInput.value = '';
-        amountInput.focus();
+            amountInput.value = '';
+            noteInput.value = '';
+            amountInput.focus();
 
-        await refreshApp();
-        SyncManager.syncNow(refreshApp);
+            await refreshApp();
+            if (typeof SyncManager !== 'undefined') {
+                SyncManager.syncNow(refreshApp);
+            }
+        } catch (err) {
+            alert('حدث خطأ أثناء الحفظ: ' + err.message);
+            console.error(err);
+        }
     });
 
-    // حذف مصروف ومزامنته فوراً
+    // 4. ربط الحذف
     document.getElementById('expense-list').addEventListener('click', async (e) => {
         if (e.target.classList.contains('btn-delete')) {
             const id = e.target.dataset.id;
             await ExpenseDB.softDeleteExpense(id);
             await refreshApp();
-            SyncManager.syncNow(refreshApp);
+            if (typeof SyncManager !== 'undefined') {
+                SyncManager.syncNow(refreshApp);
+            }
         }
     });
+
+    // 5. تشغيل قاعدة البيانات والمزامنة
+    try {
+        await ExpenseDB.init();
+        await refreshApp();
+        if (typeof SyncManager !== 'undefined') {
+            SyncManager.syncNow(refreshApp);
+        }
+    } catch (err) {
+        console.error('فشل تهيئة قاعدة البيانات:', err);
+    }
 
     async function refreshApp() {
         const expenses = await ExpenseDB.getActiveExpenses();
